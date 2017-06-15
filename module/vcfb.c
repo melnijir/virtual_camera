@@ -133,7 +133,9 @@ static ssize_t vcfb_write( struct file * file, const char __user * buffer, size_
 		return 0;
 	}
 
-	copy_from_user( data + buf->filled, (void *) buffer, to_be_copyied );
+	if (copy_from_user( data + buf->filled, (void *) buffer, to_be_copyied ) != 0) {
+		printk(KERN_WARNING "Failed to copy_from_user!");
+	}
 	buf->filled += to_be_copyied;
 	//PRINT_DEBUG("Received %d/%d B\n", (int)buf->filled, (int)waiting_bytes);
 

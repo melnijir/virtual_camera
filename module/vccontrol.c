@@ -59,7 +59,9 @@ static ssize_t ctrl_read( struct file *file, char __user * buffer,
 	len = strlen(str);
 	if( len < length )
 		len = length;
-	copy_to_user(buffer,str,len);
+	if (copy_to_user(buffer,str,len) != 0) {
+		printk(KERN_WARNING "Failed to copy_to_user!");
+	}
 	return len;
 }
 
@@ -181,15 +183,15 @@ static int ctrl_ioctl_destroy_device( struct vcmod_device_spec * dev_spec )
 static long ctrl_ioctl( struct file * file, unsigned int ioctl_cmd,
 							 unsigned long ioctl_param )
 {
-	long ret;
+	long ret = 0;
 	struct vcmod_device_spec dev_spec;
 
-	ret = 0;
-	PRINT_DEBUG( "ioctl\n" );
-
-	copy_from_user( &dev_spec, ( void __user * ) ioctl_param,
+	ret = copy_from_user( &dev_spec, ( void __user * ) ioctl_param,
 	 	sizeof(struct vcmod_device_spec) );
-
+	if (ret != 0) {
+		printk(KERN_WARNING "Failed to copy_from_user!");
+		return -1;
+	}
 	switch( ioctl_cmd ){
 		case VCMOD_IOCTL_CREATE_DEVICE:
 			PRINT_DEBUG("Requesing new device\n");
@@ -203,8 +205,11 @@ static long ctrl_ioctl( struct file * file, unsigned int ioctl_cmd,
 			PRINT_DEBUG("Get device(%d)\n",dev_spec.idx);
 			ret = ctrl_ioctl_get_device( &dev_spec );
 			if(!ret){
-				copy_to_user( (void * __user *) ioctl_param, &dev_spec,
-					sizeof(struct vcmod_device_spec) );
+				if (copy_to_user( (void * __user *) ioctl_param, &dev_spec,
+					sizeof(struct vcmod_device_spec) ) != 0) {
+					printk(KERN_WARNING "Failed to copy_to_user!");
+					ret = -1;
+				}
 			}
 			break;
 		case VCMOD_IOCTL_MODIFY_SETTING:

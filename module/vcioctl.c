@@ -12,9 +12,18 @@ int vcdev_querycap( struct file * file, void * priv,
     PRINT_DEBUG("IOCTL QueryCap");
     strcpy(cap->driver, vc_driver_name);
     strcpy(cap->card, vc_driver_name);
-    cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
+    strcpy(cap->bus_info, "platform: virtual");
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,7,0)
+    cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
                         V4L2_CAP_STREAMING     |
                         V4L2_CAP_READWRITE;
+#endif
+    //    cap->capabilities = cap->device_caps|V4L2_CAP_DEVICE_CAPS;
+    cap->capabilities = V4L2_CAP_VIDEO_CAPTURE 	|
+            			V4L2_CAP_STREAMING     	|
+						V4L2_CAP_READWRITE		|
+						V4L2_CAP_DEVICE_CAPS;
+
     return 0;
 }
 
@@ -27,6 +36,7 @@ int vcdev_enum_input( struct file * file, void * priv,
         return -EINVAL;
     
     inp->type = V4L2_INPUT_TYPE_CAMERA;
+    inp->capabilities = 0;
     sprintf(inp->name,"vc_in %u", inp->index );
     return 0;
 }
@@ -55,8 +65,6 @@ int vcdev_enum_fmt_vid_cap( struct file * file, void * priv,
     struct vc_device * dev;
     struct vc_device_format * fmt;
     int idx;
-
-    PRINT_DEBUG( "IOCTL enum_fmt(%u)\n", f->index );
 
     dev = ( struct vc_device * ) video_drvdata(file);
     idx = f->index;
@@ -185,14 +193,20 @@ int vcdev_enum_frameintervals(struct file *file, void *priv,
         }
     }
 
+    if( (fival->width % 2)  || (fival->height % 2) ){
+		PRINT_DEBUG("Unsupported resolution\n");
+		return -EINVAL;
+	}
+
+
     fival->type = V4L2_FRMIVAL_TYPE_STEPWISE;
     frm_step = &fival->stepwise;
     frm_step->min.numerator    = 1001;
     frm_step->min.denominator  = 60000;
-    frm_step->max.numerator    = 1;
+    frm_step->max.numerator    = 1001;
     frm_step->max.denominator  = 1;
-    frm_step->step.numerator   = 1;
-    frm_step->step.denominator = 1;
+    frm_step->step.numerator   = 1001;
+    frm_step->step.denominator = 60000;
 
     return 0;
 }
@@ -255,7 +269,7 @@ int vcdev_enum_framesizes(struct file *filp, void *priv,
     struct vc_device * dev;
     struct v4l2_frmsize_discrete * size_discrete;
 
-    PRINT_DEBUG("IOCTL enum_framesizes\n");
+    PRINT_INFO("IOCTL enum_framesizes (%u), pixfmt: %u\n", fsize->index, fsize->pixel_format);
 
     dev = ( struct vc_device * ) video_drvdata( filp );
 

@@ -54,12 +54,13 @@ static const struct v4l2_ioctl_ops vcdev_ioctl_ops = {
     .vidioc_g_parm              = vcdev_s_parm,
     .vidioc_enum_frameintervals = vcdev_enum_frameintervals,
     .vidioc_enum_framesizes     = vcdev_enum_framesizes,
-    .vidioc_reqbufs             = vb2_ioctl_reqbufs,
+	.vidioc_reqbufs             = vb2_ioctl_reqbufs,
     .vidioc_create_bufs         = vb2_ioctl_create_bufs,
     .vidioc_prepare_buf         = vb2_ioctl_prepare_buf,
     .vidioc_querybuf            = vb2_ioctl_querybuf,
     .vidioc_qbuf                = vb2_ioctl_qbuf,
     .vidioc_dqbuf               = vb2_ioctl_dqbuf,
+	.vidioc_expbuf				= vb2_ioctl_expbuf,
     .vidioc_streamon            = vb2_ioctl_streamon,
     .vidioc_streamoff           = vb2_ioctl_streamoff
 };
@@ -143,7 +144,9 @@ void submit_noinput_buffer(struct vc_out_buffer * buf,
 	size_t rowsize;
 	size_t rows;
 	int i,j,stripe_size;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,4,0)
 	struct timeval ts;
+#endif
 	int32_t *yuyv_ptr;
 	int32_t yuyv_tmp;
 	unsigned char * yuyv_helper = (unsigned char *) &yuyv_tmp;
@@ -188,9 +191,12 @@ void submit_noinput_buffer(struct vc_out_buffer * buf,
 	}
 
 	//memset( vbuf_ptr, 0x00, size );
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,4,0)
 	do_gettimeofday( &ts );
 	buf->vb.v4l2_buf.timestamp = ts;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,5,0)
+	buf->vb.timestamp = ktime_get_ns();
+#endif
 	vb2_buffer_done( &buf->vb, VB2_BUF_STATE_DONE );
 	//PRINT_DEBUG("Skipped buffer submitted\n");
 }
@@ -311,7 +317,9 @@ void submit_copy_buffer( struct vc_out_buffer * out_buf,
 {
 	void * in_vbuf_ptr;
 	void * out_vbuf_ptr;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,4,0)
 	struct timeval ts;
+#endif
 
 	in_vbuf_ptr = in_buf->data;
 	if(!in_vbuf_ptr){
@@ -364,9 +372,12 @@ void submit_copy_buffer( struct vc_out_buffer * out_buf,
 
 		}	
 	}
-	
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,4,0)
 	do_gettimeofday( &ts );
 	out_buf->vb.v4l2_buf.timestamp = ts;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,5,0)
+	out_buf->vb.timestamp = ktime_get_ns();
+#endif
 	vb2_buffer_done( &out_buf->vb, VB2_BUF_STATE_DONE );
 	//PRINT_DEBUG("Copy buffer submitted, %dB\n", (int)in_buf->filled);
 }
@@ -489,7 +500,7 @@ static void fill_v4l2pixfmt( struct v4l2_pix_format * fmt,
 			break;
 	}
 
-	fmt->field  = V4L2_FIELD_INTERLACED;
+	fmt->field  = V4L2_FIELD_NONE;
     fmt->sizeimage = fmt->height * fmt->bytesperline;
 }
 
@@ -503,24 +514,22 @@ struct vc_device * create_vcdevice(size_t idx, struct vcmod_device_spec * dev_sp
 	PRINT_DEBUG("creating device\n");
 
 	vcdev = (struct vc_device *) 
-		kmalloc( sizeof( struct vc_device), GFP_KERNEL );
+		kzalloc( sizeof( struct vc_device), GFP_KERNEL );
 	//PRINT_DEBUG("Allocated at %0X\n",(unsigned int) vcdev);
 	if( !vcdev ){
 		goto vcdev_alloc_failure;
 	}
 
-	memset( vcdev, 0x00, sizeof(struct vc_device) );
-
 	//Assign name of v4l2 device 
 	snprintf(vcdev->v4l2_dev.name, sizeof(vcdev->v4l2_dev.name),
 		"%s-%d",vc_dev_name,(int)idx);
 	//Try to register
-	ret = v4l2_device_register(NULL,&vcdev->v4l2_dev);
+	ret = v4l2_device_register(NULL, &vcdev->v4l2_dev);
 	if(ret){
 		PRINT_ERROR("v4l2 registration failure\n");
 		goto v4l2_registration_failure;
 	}
-	PRINT_DEBUG("v4l2 device \"%s\" registration successful\n",
+	PRINT_INFO("v4l2 device \"%s\" registration successful\n",
 		vcdev->v4l2_dev.name);
 
 	//Initialize buffer queue and device structures
@@ -544,6 +553,12 @@ struct vc_device * create_vcdevice(size_t idx, struct vcmod_device_spec * dev_sp
 	vdev->v4l2_dev = &vcdev->v4l2_dev; 
     vdev->queue = &vcdev->vb_out_vidq;
     vdev->lock = &vcdev->vc_mutex;
+    vdev->tvnorms = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0)
+    vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | //V4L2_CAP_VIDEO_OVERLAY |
+    		V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+#endif
+
 	snprintf(vdev->name, sizeof(vdev->name),
 		"%s-%d",vc_dev_name,(int)idx);
 	video_set_drvdata(vdev, vcdev);

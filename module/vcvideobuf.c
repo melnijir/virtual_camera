@@ -95,39 +95,53 @@ int vc_out_videobuf2_setup( struct vc_device * dev )
     q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_READ;
     q->drv_priv = dev;
     q->buf_struct_size = sizeof(struct vc_out_buffer);
-    q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+    q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
     q->ops = &vc_vb2_ops;
     q->mem_ops = &vb2_vmalloc_memops;
+    q->min_buffers_needed = 2;
+	q->lock = &dev->vc_mutex;
 
     ret = vb2_queue_init(q);
 	return ret;
 }
 
 int vc_out_queue_setup( struct vb2_queue * vq,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,4,0)
                          const struct v4l2_format * fmt,
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
+                         const void *parg,
+#endif
                          unsigned int *nbuffers, unsigned int *nplanes,
-                         unsigned int sizes[], void * alloc_ctxs[])
+                         unsigned int sizes[],
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
+						 void *alloc_ctxs[]
+#else
+						 struct device* alloc_ctxs[]
+#endif
+					)
 {
-    unsigned long size;    
+    unsigned long size = 0;
     struct vc_device * dev;
-    //struct virtualcam_device * dev = vb2_get_drv_priv(vq);
-    PRINT_DEBUG( "queue_setup\n" );
+    int i;
 
     dev = vb2_get_drv_priv( vq );
 
-    if( fmt )
-        size = fmt->fmt.pix.sizeimage;
-    else
-        size = dev->output_format.sizeimage;
+//    if( fmt )
+//        size = fmt->fmt.pix.sizeimage;
+//    if (!size)
+
+    size = dev->output_format.sizeimage;
 
     PRINT_DEBUG("sizeimage set to %ld\n",size);
    
-    if( 0 == *nbuffers )
+    if( *nbuffers < 2)
         *nbuffers = 2;
  
     *nplanes = 1;
     
     sizes[0] = size;
+    for (i = 1; i < VB2_MAX_PLANES; ++i) sizes[i]=0;
+//    PRINT_INFO("Setup set values: sizes[0]=%u, nplanes=%u, nbuffers=%u\n", sizes[0], *nplanes, *nbuffers);
     PRINT_DEBUG( "queue_setup completed\n" ); 
     return 0;
 }
@@ -155,8 +169,6 @@ void vc_out_buffer_queue( struct vb2_buffer * vb )
     struct vc_out_buffer * buf;
     struct vc_out_queue * q;
     unsigned long flags = 0;
-
-    //PRINT_DEBUG( "buffer_queue\n" );
 
     dev = vb2_get_drv_priv( vb->vb2_queue );
     buf = container_of( vb, struct vc_out_buffer, vb );
@@ -187,7 +199,7 @@ int vc_start_streaming( struct vb2_queue * q, unsigned int count )
     return 0;
 }
 
-int vc_stop_streaming( struct vb2_queue * vb2_q )
+void vc_stop_streaming( struct vb2_queue * vb2_q )
 {
     struct vc_device * dev;
     struct vc_out_buffer * buf;
@@ -215,7 +227,6 @@ int vc_stop_streaming( struct vb2_queue * vb2_q )
     }
     spin_unlock_irqrestore( &dev->out_q_slock, flags );
 
-    return 0;
 }
 
 void vc_outbuf_lock( struct vb2_queue * vq )

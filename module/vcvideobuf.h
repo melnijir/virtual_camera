@@ -14,9 +14,19 @@ void vc_in_queue_destroy( struct vc_in_queue * q );
 int vc_out_videobuf2_setup( struct vc_device * dev );
 
 int vc_out_queue_setup( struct vb2_queue * vq,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,4,0)
                          const struct v4l2_format * fmt,
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
+                         const void *parg,
+#endif
                          unsigned int *nbuffers, unsigned int *nplanes,
-                         unsigned int sizes[], void * alloc_ctxs[]);
+                         unsigned int sizes[],
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
+						 void *alloc_ctxs[]
+#else
+						 struct device* alloc_ctxs[]
+#endif
+						 );
 
 int vc_out_buffer_prepare( struct vb2_buffer * vb );
 
@@ -24,7 +34,7 @@ void vc_out_buffer_queue( struct vb2_buffer * vb );
 
 int vc_start_streaming( struct vb2_queue * q, unsigned int count );
 
-int vc_stop_streaming( struct vb2_queue * q );
+void vc_stop_streaming( struct vb2_queue * q );
 
 void vc_outbuf_lock( struct vb2_queue * vq );
 

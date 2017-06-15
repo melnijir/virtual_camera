@@ -3,10 +3,12 @@ vcmod-objs  = vcmodule.o vccontrol.o vcdevice.o vcioctl.o vcvideobuf.o vcfb.o
 obj-m = $(target).o
 #ccflags-y += -DDEBUG
 
+.PHONY: all
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	+$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
+.PHONY: clean
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	+$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 
 $(target).o: $(vcmod-objs)

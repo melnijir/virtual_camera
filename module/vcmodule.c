@@ -13,8 +13,8 @@ MODULE_DESCRIPTION("Virtual V4L2 Device driver module");
 
 unsigned short devices_max = 8;
 unsigned short create_devices = 1;
-unsigned char  allow_pix_conversion = 1;
-unsigned char  allow_scaling = 1;
+unsigned char  allow_pix_conversion = 0;
+unsigned char  allow_scaling = 0;
 
 
 module_param( devices_max, ushort, 0 );
