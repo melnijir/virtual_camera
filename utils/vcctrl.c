@@ -1,10 +1,15 @@
+#include "vcmod_api.h"
+
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "../src/vcmod_api.h"
+#include <sys/ioctl.h>
+
+#include <unistd.h>
+
 
 const char * short_options = "hcm:r:ls:p:d:";
 
@@ -81,7 +86,7 @@ int create_device( struct vcmod_device_spec * dev )
 	fd = open( ctrl_location, O_RDWR );
 	if( fd == -1 ){
 		fprintf(stderr,"Failed to open %s device\n",ctrl_location);
-		return;
+		return -1;
 	}
 
 	if(!dev->width || !dev->height){
@@ -95,14 +100,13 @@ int create_device( struct vcmod_device_spec * dev )
 
 	res = ioctl(fd, VCMOD_IOCTL_CREATE_DEVICE, dev);
 
-	close( ctrl_location );
+	close( fd );
 	return res;
 }
 
 int remove_device( struct vcmod_device_spec * dev )
 {
 	int fd;
-	int res = 0;
 
 	fd = open( ctrl_location, O_RDWR );
 	if( fd == -1 ){
@@ -159,7 +163,6 @@ int list_devices()
 {
 	int fd;
 	struct vcmod_device_spec dev;
-	int idx;
 
 	fd = open( ctrl_location, O_RDWR );
 	if( fd == -1 ){
@@ -182,14 +185,12 @@ int list_devices()
 
 int main( int argc, char * argv[])
 {
-	char * program_name;
 	int next_option;
 	enum ACTION current_action = ACTION_NONE;
 	struct vcmod_device_spec dev;
     int ret = 0;
     int tmp;
 
-	program_name = argv[0];
 	memset(&dev, 0x00, sizeof(struct vcmod_device_spec));
 
 	//Process cmd line options
@@ -246,6 +247,8 @@ int main( int argc, char * argv[])
 			break;
 		case ACTION_MODIFY:
 			ret = modify_device( &dev );
+			break;
+		case ACTION_NONE:
 			break;
 	}
 
