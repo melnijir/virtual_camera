@@ -1,0 +1,1 @@
+ACTION=="add", KERNEL=="vcdev", MODE="0774", GROUP="video"
