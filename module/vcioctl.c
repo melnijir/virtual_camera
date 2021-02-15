@@ -1,3 +1,4 @@
+#include <linux/version.h>
 #include <linux/videodev2.h>
 #include "vcioctl.h"
 #include "vcdevice.h"

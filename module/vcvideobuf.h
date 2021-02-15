@@ -1,6 +1,7 @@
 #ifndef VCVIDEOBUF_H
 #define VCVIDEOBUF_H
 
+#include <linux/version.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>
 #include "vcdevice.h"
