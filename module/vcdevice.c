@@ -563,7 +563,7 @@ struct vc_device * create_vcdevice(size_t idx, struct vcmod_device_spec * dev_sp
 		"%s-%d",vc_dev_name,(int)idx);
 	video_set_drvdata(vdev, vcdev);
 
-	ret = video_register_device( vdev, VFL_TYPE_GRABBER, -1 );
+	ret = video_register_device( vdev, VFL_TYPE_VIDEO, -1 );
 	if(ret < 0){
 		PRINT_ERROR("video_register_device failure\n");
 		goto video_regdev_failure;

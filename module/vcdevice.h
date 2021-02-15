@@ -8,6 +8,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
@@ -18,6 +19,10 @@
 
 #define PIXFMTS_MAX 4
 #define FB_NAME_MAXLENGTH 16
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0)
+    #define VFL_TYPE_VIDEO VFL_TYPE_GRABBER
+#endif
 
 struct vc_in_buffer {
 	void * data;

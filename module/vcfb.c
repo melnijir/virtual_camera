@@ -11,12 +11,20 @@ static ssize_t vcfb_write( struct file * file, const char __user * buffer, size_
 static int vcfb_open( struct inode *ind, struct file *file );
 static int vcfb_release( struct inode * ind, struct file * file );
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,6,0)
 struct file_operations vcfb_fops = {
 	.owner   = THIS_MODULE,
 	.open    = vcfb_open,
 	.release = vcfb_release,
 	.write   = vcfb_write,
 };
+#else
+static struct proc_ops vcfb_fops={
+    .proc_open = vcfb_open,
+    .proc_release = vcfb_release,
+    .proc_write = vcfb_write
+};
+#endif
 
 struct proc_dir_entry* init_framebuffer( const char * proc_fname, struct vc_device * dev )
 {
